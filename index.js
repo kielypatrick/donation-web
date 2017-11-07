@@ -3,19 +3,58 @@
 const Hapi = require('hapi');
 
 var server = new Hapi.Server();
+// const fs = require('fs');
+// var options = {
+//   port: 4443,     //  or any port you wish
+//   tls: {
+//       key: fs.readFileSync('private/webserver.key'),
+//       cert: fs.readFileSync('private/webserver.crt')
+//   }
+// };
+// server.connection(options);
+
 server.connection({ port: process.env.PORT || 4000 });
 
-server.bind({
-  currentUser : {},
-  users: [],
-  donations: [],
-});
 
-server.register([require('inert'), require('vision')], err => {
+const initUsers = {
+  'bart@simpson.com': {
+    firstName: 'bart',
+    lastName: 'simpson',
+    email: 'bart@simpson.com',
+    password: 'secret',
+  },
+  'lisa@simpson.com': {
+    firstName: 'lisa',
+    lastName: 'simpson',
+    email: 'lisa@simpson.com',
+    password: 'secret',
+  },
+};
+//server.bind({  //No longer needed after mongo introduced
+//  users: initUsers,
+//  donations: [],
+//});
+require('./app/models/db');
+
+
+server.register([require('inert'), require('vision'), require('hapi-auth-cookie')], err => {
 
   if (err) {
     throw err;
   }
+
+  server.auth.strategy('standard', 'cookie', {
+    password: 'secretpasswordnotrevealedtoanyone',
+    cookie: 'donation-cookie',
+    isSecure: false,
+    ttl: 24 * 60 * 60 * 1000,
+    redirectTo: '/login',
+
+  });
+
+  server.auth.default({
+    strategy: 'standard',
+  });
 
   server.views({
     engines: {
@@ -30,6 +69,9 @@ server.register([require('inert'), require('vision')], err => {
   });
 
   server.route(require('./routes'));
+  server.route(require('./routesapi'));
+
+
   server.start(err => {
     if (err) {
       throw err;
